@@ -1,0 +1,149 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+/* ---------- Structures ---------- */
+
+typedef struct {
+    char id[100];
+    int weight;
+} Package;
+
+typedef struct {
+    int min_weight;
+    int max_weight;
+    int packages_count;
+    Package *packages;
+} PostOffice;
+
+typedef struct {
+    char name[100];
+    int offices_count;
+    PostOffice *offices;
+} Town;
+
+/* ---------- Functions ---------- */
+
+Town* find_town(Town *towns, int towns_count, char *name) {
+    for (int i = 0; i < towns_count; i++) {
+        if (strcmp(towns[i].name, name) == 0)
+            return &towns[i];
+    }
+    return NULL;
+}
+
+void print_town(Town *town) {
+    printf("%s:\n", town->name);
+    for (int i = 0; i < town->offices_count; i++) {
+        printf("\t%d:\n", i);
+        for (int j = 0; j < town->offices[i].packages_count; j++) {
+            printf("\t\t%s\n", town->offices[i].packages[j].id);
+        }
+    }
+}
+
+void send_all_packages(PostOffice *from, PostOffice *to) {
+    Package *accepted = malloc(from->packages_count * sizeof(Package));
+    Package *rejected = malloc(from->packages_count * sizeof(Package));
+    int acc = 0, rej = 0;
+
+    for (int i = 0; i < from->packages_count; i++) {
+        int w = from->packages[i].weight;
+        if (w >= to->min_weight && w <= to->max_weight) {
+            accepted[acc++] = from->packages[i];
+        } else {
+            rejected[rej++] = from->packages[i];
+        }
+    }
+
+    to->packages = realloc(to->packages,
+        (to->packages_count + acc) * sizeof(Package));
+
+    for (int i = 0; i < acc; i++)
+        to->packages[to->packages_count + i] = accepted[i];
+
+    to->packages_count += acc;
+
+    free(from->packages);
+    from->packages = rejected;
+    from->packages_count = rej;
+
+    free(accepted);
+}
+
+Town* town_with_most_packages(Town *towns, int towns_count) {
+    int max = -1;
+    Town *res = NULL;
+
+    for (int i = 0; i < towns_count; i++) {
+        int total = 0;
+        for (int j = 0; j < towns[i].offices_count; j++)
+            total += towns[i].offices[j].packages_count;
+
+        if (total > max) {
+            max = total;
+            res = &towns[i];
+        }
+    }
+    return res;
+}
+
+/* ---------- Main ---------- */
+
+int main() {
+    int towns_count;
+    scanf("%d", &towns_count);
+
+    Town *towns = malloc(towns_count * sizeof(Town));
+
+    for (int i = 0; i < towns_count; i++) {
+        scanf("%s", towns[i].name);
+        scanf("%d", &towns[i].offices_count);
+
+        towns[i].offices = malloc(towns[i].offices_count * sizeof(PostOffice));
+
+        for (int j = 0; j < towns[i].offices_count; j++) {
+            PostOffice *po = &towns[i].offices[j];
+            scanf("%d %d %d",
+                  &po->packages_count,
+                  &po->min_weight,
+                  &po->max_weight);
+
+            po->packages = malloc(po->packages_count * sizeof(Package));
+            for (int k = 0; k < po->packages_count; k++) {
+                scanf("%s", po->packages[k].id);
+                scanf("%d", &po->packages[k].weight);
+            }
+        }
+    }
+
+    int queries;
+    scanf("%d", &queries);
+
+    while (queries--) {
+        int type;
+        scanf("%d", &type);
+
+        if (type == 1) {
+            char name[100];
+            scanf("%s", name);
+            print_town(find_town(towns, towns_count, name));
+        }
+        else if (type == 2) {
+            char t1[100], t2[100];
+            int o1, o2;
+            scanf("%s %d %s %d", t1, &o1, t2, &o2);
+
+            Town *from = find_town(towns, towns_count, t1);
+            Town *to   = find_town(towns, towns_count, t2);
+
+            send_all_packages(&from->offices[o1], &to->offices[o2]);
+        }
+        else if (type == 3) {
+            Town *res = town_with_most_packages(towns, towns_count);
+            printf("Town with the most number of packages is %s\n", res->name);
+        }
+    }
+
+    return 0;
+}
